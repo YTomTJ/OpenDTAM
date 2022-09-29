@@ -14,8 +14,8 @@ public:
     cudaArray* cuArray;
     cudaTextureObject_t texObj;
     
-    ArrayTexture(const cv::gpu::CudaMem& image, const cv::gpu::Stream& cvStream =
-    cv::gpu::Stream::Null());
+    ArrayTexture(const cv::cuda::CudaMem& image, const cv::cuda::Stream& cvStream =
+    cv::cuda::Stream::Null());
     
     ArrayTexture& operator = (const ArrayTexture& tex) {
         if (this != &tex) {

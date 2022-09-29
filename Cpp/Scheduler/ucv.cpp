@@ -21,7 +21,7 @@ Tucv{
     }
 }
 
-cv::gpu::CudaMem imageContainer;
+cv::cuda::CudaMem imageContainer;
 
 Ptr<CostVolume> ucv(Frame& base,Frame& alt){
     Mat cameraMatrix=this->cameraMatrix.clone();

@@ -1,4 +1,4 @@
-namespace cv { namespace gpu { namespace device {
+z`namespace cv { namespace gpu { namespace device {
     namespace dtam_updateCost{
 
 __constant__ float c_sliceToIm[3 * 3];

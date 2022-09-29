@@ -16,7 +16,7 @@ public:
 
     void attach(CostVolume& cv);
     void initOptimization();
-    bool optimizeA(const cv::gpu::GpuMat d, cv::gpu::GpuMat a);
+    bool optimizeA(const cv::cuda::GpuMat d, cv::cuda::GpuMat a);
 
     const cv::Mat depthMap();
     
@@ -26,8 +26,8 @@ public:
     float thetaStart,thetaStep,thetaMin,epsilon,lambda;
 
     //buffers
-    cv::gpu::GpuMat _d,_a;
-    cv::gpu::GpuMat stableDepth;
+    cv::cuda::GpuMat _d,_a;
+    cv::cuda::GpuMat stableDepth;
     float getTheta(){return theta;}
 // private:
     void allocate();
@@ -43,7 +43,7 @@ public:
     int stableDepthEnqueued;
     cv::Ptr<char> stableDepthReady;//really a void*
 public:
-    cv::gpu::Stream cvStream;
+    cv::cuda::Stream cvStream;
 
     
 };

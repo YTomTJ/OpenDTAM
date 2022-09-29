@@ -1,10 +1,12 @@
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/highgui/highgui_c.h>
 #include <boost/thread/mutex.hpp>
 #include <queue>
 #include <string>
 #include "set_affinity.h"
 #include "utils/ImplThreadLaunch.hpp"
 #include "graphics.hpp"
+
 
 using namespace std;
 using namespace cv;

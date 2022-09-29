@@ -1,5 +1,10 @@
+// <<<<<<< HEAD
+// #include <opencv2/core.hpp>
+// #include <opencv2/imgproc.hpp>
+// =======
 #include <opencv2/core/core.hpp>
 #include <opencv2/opencv.hpp>
+// >>>>>>> 3.0.0
 #include <iostream>
 #include "reproject.hpp"
 #include "tictoc.h"

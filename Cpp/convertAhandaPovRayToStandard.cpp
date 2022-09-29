@@ -3,7 +3,7 @@
 // It is based on a file they provided there, but makes the world coordinate system right handed, with z up,
 // x right, and y forward.
 
-#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
 #include <iostream>
 #include <fstream>
 #include <string.h>
@@ -14,12 +14,13 @@ using namespace std;
 Vec3f direction;
 Vec3f upvector;
 void convertAhandaPovRayToStandard(const char * filepath,
+                                   int imageNumber,
                                    Mat& cameraMatrix,
                                    Mat& R,
                                    Mat& T)
 {
     char text_file_name[600];
-    sprintf(text_file_name,"%s",filepath);
+    sprintf(text_file_name,"%s/scene_%03d.txt",filepath,imageNumber);
 
     cout << "text_file_name = " << text_file_name << endl;
 

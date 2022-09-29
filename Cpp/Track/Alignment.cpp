@@ -167,7 +167,7 @@ static bool align_level_largedef_gray_forward(const Mat& T,//Total Mem cost ~185
    
     
     //Build the unincremented transform: (Mem cost 2 layer store,3 load :5)
-    Mat baseMap(rows,cols,CV_32FC2);
+    Mat baseMap(rows,cols,CV_32FC2);    
     {
         Mat tmp=_p.clone();
         Mat baseProj=paramsToProjection(_p,cameraMatrix);
@@ -190,6 +190,7 @@ static bool align_level_largedef_gray_forward(const Mat& T,//Total Mem cost ~185
         
         remap( packed, pulledBack, baseMap,Mat(), CV_INTER_LINEAR, BORDER_CONSTANT,0.0 );//(Mem cost:?? 5load, 3 store:8)
         gradI.create(r,c,CV_32FC2);
+        remap
 
         int from_to[] = { 0,0, 1,1, 2,2 };
         Mat src[1]=pulledBack;

@@ -16,13 +16,13 @@ Track::Track(CostVolume cost){
     rows=cost.rows;
     cols=cost.cols;
     cost.baseImage.download(thisFrame);
-    baseImage=lastFrame=makeGray(thisFrame);
+    baseImage=lastFrame=thisFrame;
     cameraMatrix=Mat(cost.cameraMatrix);
     RTToLie(cost.R,cost.T,basePose);
     pose=basePose.clone();
-    verbose=0;
+
 }
 void Track::addFrame(cv::Mat frame){
     lastFrame=thisFrame;
-    thisFrame=makeGray(frame);
+    thisFrame=frame;
 }

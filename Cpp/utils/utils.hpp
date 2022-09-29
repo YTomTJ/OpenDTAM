@@ -1,17 +1,10 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/imgproc/types_c.h>
 #include <opencv2/calib3d/calib3d.hpp>
 #ifndef DTAM_UTILS_HPP
 #define DTAM_UTILS_HPP
 using namespace cv;
-
-static Mat  makeGray(Mat image){
-    if (image.channels()!=1) {
-        cvtColor(image, image, CV_BGR2GRAY);
-    }
-    return image;
-}
-
 static Mat make4x4(const Mat& mat){
     
     if (mat.rows!=4||mat.cols!=4){
@@ -138,34 +131,4 @@ static Mat LieAdd(Mat A, Mat B){
     return out;
 }
 
-template<class tp>
-tp median_(const Mat& _M) {
-    Mat M=_M.clone();
-    int iSize=M.cols*M.rows;
-    tp* dpSorted=(tp*)M.data;
-    // Allocate an array of the same size and sort it.
-    
-    std::sort (dpSorted, dpSorted+iSize);
-
-    // Middle or average of middle values in the sorted array.
-    tp dMedian = 0.0;
-    if ((iSize % 2) == 0) {
-        dMedian = (dpSorted[iSize/2] + dpSorted[(iSize/2) - 1])/2.0;
-    } else {
-        dMedian = dpSorted[iSize/2];
-    }
-    return dMedian;
-}
-
-static double median(const Mat& M) {
-    if(M.type()==CV_32FC1)
-        return median_<float>(M);
-    if(M.type()==CV_64FC1)
-        return median_<double>(M);
-    if(M.type()==CV_32SC1)
-        return median_<int>(M);
-    if(M.type()==CV_16UC1)
-        return median_<uint16_t>(M);
-    assert(!"Unsupported type");
-}
 #endif 

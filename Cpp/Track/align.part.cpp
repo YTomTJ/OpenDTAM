@@ -101,11 +101,11 @@ static void createPyramids(const Mat& base,
     }
     
 }
-bool Track::align(){
-    return align_gray(baseImage, depth, thisFrame);
+void Track::align(){
+    align_gray(baseImage, depth, thisFrame);
 };
 
-bool Track::align_gray(Mat& _base, Mat& depth, Mat& _input){
+void Track::align_gray(Mat& _base, Mat& depth, Mat& _input){
     Mat input,base,lastFrameGray;
     input=makeGray(_input);
     base=makeGray(_base);
@@ -114,10 +114,10 @@ bool Track::align_gray(Mat& _base, Mat& depth, Mat& _input){
     tic();
     int levels=6; // 6 levels on a 640x480 image is 20x15
     int startlevel=0;
-    int endlevel=5;
+    int endlevel=6;
 
     Mat p=LieSub(pose,basePose);// the Lie parameters 
-//     cout<<"pose: "<<p<<endl;
+    cout<<"pose: "<<p<<endl;
 
     vector<Mat> basePyr,depthPyr,inPyr,cameraMatrixPyr;
     createPyramids(base,depth,input,cameraMatrix,basePyr,depthPyr,inPyr,cameraMatrixPyr,levels);
@@ -125,39 +125,17 @@ bool Track::align_gray(Mat& _base, Mat& depth, Mat& _input){
     vector<Mat> lfPyr;
     createPyramid(lastFrameGray,lfPyr,levels);
     
-    Mat mm;
-    {
-        Mat T=lfPyr[0];
-        Mat _I=inPyr[0];
-        Mat result,tmp;
-        Scalar c=mean(T);
-        int move=T.rows/2-1;
-        copyMakeBorder(_I,tmp,move,move,move,move,BORDER_CONSTANT,c);
-        matchTemplate( tmp, T, result, 0);
-//         matchTemplate( _I, T(Range(5,10),Range(5,15)), result, 0 );
-        double minVal; double maxVal; Point minLoc; Point maxLoc;
-        Point matchLoc;
+    
 
-        minMaxLoc( result, &minVal, &maxVal, &minLoc, &maxLoc, Mat() );
-        Point2d moff=minLoc;
-        mm=(Mat)moff;
-        mm-=move;
-        if(verbose){
-            pfShow("soln",result);
-        }
-    }
 
-    int improved; 
+    
     int level=startlevel;
     Mat p2d=Mat::zeros(1,6,CV_64FC1);
-    p2d.at<double>(0,1)=.07*mm.at<double>(0,0);
-    p2d.at<double>(0,0)=-.07*mm.at<double>(1,0);
-    Mat expected=p2d.clone();
     for (; level<LEVELS_2D; level++){
-        int iters=10;
-        for(int i=0;i<iters||improved==2&&i<100;i++){
+        int iters=1;
+        for(int i=0;i<iters;i++){
             //HACK: use 3d alignment with depth disabled for 2D. ESM would be much better, but I'm lazy right now.
-            improved = align_level_largedef_gray_forward(  lfPyr[level],//Total Mem cost ~185 load/stores of image
+            align_level_largedef_gray_forward(  lfPyr[level],//Total Mem cost ~185 load/stores of image
                                                 depthPyr[level]*0.0,
                                                 inPyr[level],
                                                 cameraMatrixPyr[level],//Mat_<double>
@@ -169,26 +147,13 @@ bool Track::align_gray(Mat& _base, Mat& depth, Mat& _input){
 //                 break;
         }
     }
-    cout<<"ratio: "<<setprecision(3)<<p2d/expected<<endl;
-//     gpause();
     p=LieAdd(p2d,p);
-//     { //debug template match helper
-//         cout<<"mm:"<<mm<<endl;
-//         cout<<p2d<<endl;
-//         gpause();
-//     }
 //     cout<<"3D iteration:"<<endl;
-    
     for (level=startlevel; level<levels && level<endlevel; level++){
-        int iters=4;
-        for(int i=0;i<iters||improved==2&&i<10;i++){
-            float thr = 1;
-            thr = (endlevel-level)>=3 ? .2 : .06; //more stringent matching on last two levels
-//             thr=(endlevel-level)>=3 ?.5:thr;
-//             thr=(endlevel-level)>=4 ?.7:thr;
-//             thr=(endlevel-level)>=5 ?.9:thr;
-            thr=(endlevel-level)>=5 ? 1:thr;
-
+        int iters=1;
+        for(int i=0;i<iters;i++){
+            float thr = (levels-level)>=2 ? .05 : .2; //more stringent matching on last two levels 
+            bool improved;
             improved = align_level_largedef_gray_forward(   basePyr[level],//Total Mem cost ~185 load/stores of image
                                                             depthPyr[level],
                                                             inPyr[level],
@@ -197,7 +162,7 @@ bool Track::align_gray(Mat& _base, Mat& depth, Mat& _input){
                                                             CV_DTAM_FWD,
                                                             thr,
                                                             6);
-
+            
 //             if(tocq()>.5){
 //                 cout<<"completed up to level: "<<level-startlevel+1<<"   iter: "<<i+1<<endl;
 //                 goto loopend;//olny sactioned use of goto, the double break
@@ -213,8 +178,6 @@ bool Track::align_gray(Mat& _base, Mat& depth, Mat& _input){
     static int runs=0;
     //assert(runs++<2);
     toc();
-    cout<<"Quality: "<<quality<<endl;
-    return improved;
     
 }
 

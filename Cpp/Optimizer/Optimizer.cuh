@@ -1,8 +1,8 @@
 
-#ifndef OPTIMIZER_CUH
-#define OPTIMIZER_CUH
-#include <opencv2/gpu/device/common.hpp>
-namespace cv { namespace gpu { namespace device { namespace dtam_optimizer{
+#ifndef COSTVOLUME_CUH
+#define COSTVOLUME_CUH
+#include <opencv2/core/cuda/common.hpp>
+namespace cv { namespace cuda { namespace dtam_optimizer{
     struct m33{
             float data[9];
         };
@@ -15,5 +15,5 @@ namespace cv { namespace gpu { namespace device { namespace dtam_optimizer{
     void minimizeACaller(float*cdata,float*a, float* d, int layers,float theta,float lambda);
     
     extern cudaStream_t localStream;
-}}}}
+}}}
 #endif

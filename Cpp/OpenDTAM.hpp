@@ -323,7 +323,7 @@ bool utrk(Ptr<Frame> _frame){
     return 1;
 }
 
-cv::gpu::CudaMem imageContainerUcv;
+cv::cuda::CudaMem imageContainerUcv;
 bool ucv(Ptr<Frame> _base,Ptr<Frame> _alt){
     Frame& base=*_base;
     Frame& alt=*_alt;

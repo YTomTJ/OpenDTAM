@@ -7,8 +7,8 @@
 
 class Track{
 public:
-    bool align();
-    bool align_gray(cv::Mat& base, cv::Mat& depth, cv::Mat& input);
+    void align();
+    void align_gray(cv::Mat& base, cv::Mat& depth, cv::Mat& input);
     cv::Mat cameraMatrix;
     int rows;
     int cols;
@@ -20,20 +20,18 @@ public:
     cv::Mat pose;
     cv::Mat thisFrame;
     cv::Mat lastFrame;
-    double quality;
-    double occlusion;
-    double coverage;
+    
     Track(Cost cost);
     Track(CostVolume cost);
     void addFrame(cv::Mat frame);
     void ESM();
     void cacheDerivatives();
-    bool verbose;
+
 private:
     //Alignment Functions
     
     //Large deformation, forward mapping, 6DoF
-    int align_level_largedef_gray_forward(const cv::Mat& T,
+    bool align_level_largedef_gray_forward(const cv::Mat& T,
                                            const cv::Mat& d,
                                            const cv::Mat& _I,
                                            const cv::Mat& cameraMatrix,//Mat_<double>

@@ -6,20 +6,21 @@
 #ifndef DepthmapDenoiseWeightedHuber_H
 #define DepthmapDenoiseWeightedHuber_H
 #include <opencv2/core/core.hpp>//for CV_EXPORTS
-#include <opencv2/gpu/gpu.hpp>
+#include <opencv2/core/cuda.hpp>
+
 namespace cv{
-    namespace gpu{
+    namespace cuda{
         /////////////////////////////////////////
         // DepthMapDenoiseWeightedHuber
 
-        //! OpenDTAM Variant of Chambolle & Pock denoising
+        //!Variant of Chambolle & Pock denoising
         //!
-        //! The complicated half of the DTAM algorithm's mapping core,
+        //! The complicated half of the Dynamic Slam algorithm's mapping core,
         //! but can be used independently to refine depthmaps.
         //!
         //! Contributed by Paul Foster for GSoC 2014 OpenDTAM project.
-        //! High level algorithm described by Richard Newcombe, Steven J. Lovegrove, and Andrew J. Davison. 
-        //! "DTAM: Dense tracking and mapping in real-time."
+        //! High level algorithm described by Richard Newcombe, Steven J. Lovegrove, and Andrew J. Davison.
+        //! in "DTAM: Dense tracking and mapping in real-time."
         //! Which was in turn based on Chambolle & Pock's
         //! "A first-order primal-dual algorithm for convex problems with applications to imaging."
 
@@ -52,10 +53,10 @@ namespace cv{
 }
 
     
-#include <opencv2/gpu/gpu.hpp>
+#include <opencv2/core/cuda.hpp>
 
 namespace cv{
-    namespace gpu{
+    namespace cuda{
         /////////////////////////////////////////
         // DepthMapDenoiseWeightedHuber
 

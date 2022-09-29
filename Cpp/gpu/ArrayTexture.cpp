@@ -4,12 +4,12 @@
 
 
 #include "ArrayTexture.hpp"
-#include <opencv2/gpu/device/common.hpp>
+#include <opencv2/core/cuda.hpp>
 
 using namespace std;
 using namespace cv;
-using namespace gpu;
-ArrayTexture::ArrayTexture(const cv::gpu::CudaMem& image, const Stream& cvStream) {
+using namespace cuda;
+ArrayTexture::ArrayTexture(const cv::cuda::CudaMem& image, const Stream& cvStream) {
     refcount=&ref_count;
     ref_count=1;
     Mat im2=image.clone();

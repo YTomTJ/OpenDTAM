@@ -11,16 +11,14 @@ using namespace std;
 #include "graphics.hpp"
 #include "Track.hpp"
 #include "stdio.h"
-#include <iomanip>
-#include <opencv2/core/core.hpp>
 
 
 //debug
-// #define QUIET_DTAM 1
-// #include "quiet.hpp"
+#define QUIET_DTAM 1
+#include "quiet.hpp"
 
 
-const static float FAIL_FRACTION=0.70;
+const static float FAIL_FRACTION=0.30;
 
 enum alignment_modes{CV_DTAM_REV,CV_DTAM_FWD,CV_DTAM_ESM};
 const double small0=.1;//~6deg, not trivial, but hopefully enough to make the translation matter
@@ -59,6 +57,13 @@ static Mat paramsToProjection(const Mat & p,const Mat& _cameraMatrix){
     //The row drop
     proj=proj.rowRange(0,3);
     return proj;
+}
+
+static Mat&  makeGray(Mat& image){
+    if (image.channels()!=1) {
+        cvtColor(image, image, CV_BGR2GRAY);
+    }
+    return image;
 }
 
 static void getGradient(const Mat& image,Mat & grad){
@@ -127,10 +132,10 @@ static void Mask(const Mat& in,const Mat& m,Mat& out){
     Mat tmp;
     
     m.convertTo(tmp,in.type());
-    out=in.mul(tmp/255);
+    out=out.mul(tmp/255);
 }
 
-int Track::align_level_largedef_gray_forward(const Mat& T,//Total Mem cost ~185 load/stores of image
+bool Track::align_level_largedef_gray_forward(const Mat& T,//Total Mem cost ~185 load/stores of image
                           const Mat& d,
                           const Mat& _I,
                           const Mat& cameraMatrix,//Mat_<double>
@@ -140,11 +145,7 @@ int Track::align_level_largedef_gray_forward(const Mat& T,//Total Mem cost ~185 
                           int numParams
                                       )
 {
-//     Mat result;
-//     matchTemplate( _I, T(Range(5,10),Range(5,15)), result, 0 );
-//     
-//     pfShow("soln",result);
-    int ret=1;
+
     int r=_I.rows;
     int rows=r;
     int c=_I.cols;
@@ -175,46 +176,6 @@ int Track::align_level_largedef_gray_forward(const Mat& T,//Total Mem cost ~185 
         assert(baseMap.type()==CV_32FC2);
     }
     
-    {
-        //do z buffered occlusion test(approximate depth with original depth)
-        Mat xy;
-        baseMap.convertTo(xy,CV_32SC2);
-        Mat_<float> zmap(r,c,-1.0/0.0);
-        int* xyd=(int *)(xy.data);
-        float* dp=(float*) (d.data);
-        float* bp=(float*) (baseMap.data);
-        for(int i=0, offset=0;i<r;i++){
-            for(int j=0;j<c;j++,offset++){
-                int x=xyd[offset*2+0];
-                int y=xyd[offset*2+1];
-                if(x>=0&&y>=0&&x<c&&y<r){
-                    float oldz=zmap(y,x);
-                    float newz=dp[offset];
-                    if(newz>oldz){
-                        zmap(y,x)=newz;
-                    }
-                }
-            }
-        }
-        int fail=0;
-        for(int i=0, offset=0;i<r;i++){
-            for(int j=0;j<c;j++,offset++){
-                int x=xyd[offset*2+0];
-                int y=xyd[offset*2+1];
-                if(x>=0&&y>=0&&x<c&&y<r){
-                    float oldz=zmap(y,x);
-                    float newz=dp[offset];
-                    if(oldz-newz>0){
-                        bp[offset*2+0]=-10;
-                        bp[offset*2+1]=-10;
-                        fail++;
-                    }
-                }
-            }
-        }
-        occlusion=((double)fail)/(r*c);
-    }
-    
     
     // reproject the gradient and image at the same time (Mem cost >= 24)
     Mat gradI;
@@ -232,44 +193,39 @@ int Track::align_level_largedef_gray_forward(const Mat& T,//Total Mem cost ~185 
         gradI.create(r,c,CV_32FC2);
 
         int from_to[] = { 0,0, 1,1, 2,2 };
-        Mat src[1]=pulledBack;
+        Mat src[1]={pulledBack};
         Mat dst[2]={I,gradI};
         
         mixChannels(src,1,dst,2,from_to,3);// extract the image and the resampled gradient //(Mem cost: min 3 load, 3 store :6)
+        
+        
+        if(cv::countNonZero(I)<rows*cols*FAIL_FRACTION){//tracking failed!
+            return false;
+        }
+        
     }
     
     // Calculate the differences and build mask for operations (Mem cost ~ 8)
     Mat fit;
     absdiff(T,I,fit);
     Mat mask=(fit<threshold)&(I>0);
-    Mat mask2=(I>0);
-    double vis=cv::countNonZero(mask2)/(rows*cols*1.0f);
-    double good=cv::countNonZero(mask)/(rows*cols*1.0f);
-    double qual=good/vis;
-    if(verbose){
-    cout<<"Visibility: "<<vis;
-    cout<<" Accepted: "<<good<<" Quality: "<<qual<<" r: "<<rows<<endl;
-    }
-    coverage=vis;
-    quality=qual;
-    if(!(qual>=FAIL_FRACTION)||!(vis>=.3)){//tracking failed!
-        ret=0;
-    }
-    
     Mat err=T-I;
     
-    //debug
-    if (verbose){
-
-        pfShow("Before iteration",_I,0,Vec2d(0,1));
-        pfShow("After Iteration",I,0,Vec2d(0,1));
-        Mat tmp;
-        Mask(I,fit<threshold,tmp);
-        pfShow("Tracking Stabilized With Occlusion",tmp,0,Vec2d(0,1));
-        pfShow("To match",T,0,Vec2d(0,1));
-        gpause();
-    }
-
+//     //debug
+//     {
+//         if (numParams==6){
+//         pfShow("Before iteration",_I);
+// //         if(I.rows==480){
+// //             Mask(I,fit<.05,I);
+// //             pfShow("Tracking Stabilized With Occlusion",I,0,Vec2d(0,1));
+// // //             gpause();
+// //         }
+// //         else{
+//             pfShow("After Iteration",I,0,Vec2d(0,1));
+//             pfShow("To match",T);
+// //         }
+//         }
+//     }
     
    
     
@@ -377,30 +333,6 @@ int Track::align_level_largedef_gray_forward(const Mat& T,//Total Mem cost ~185 
 //         if (deltaErr<0)
 //             return false;
 //     }
-    Mat tmp=_p.clone()*0;
-    tmp.colRange(0,numParams)+=dp;
-    dp=tmp.clone();
-    float dmax=.5;//assume ~1 radian field of view
-    
-    tmp.colRange(3,6)*=.01;
-    double max;
-    tmp=tmp*cameraMatrix.at<double>(0,0);
-//     cout<<fixed<<setprecision(8)<<"bound: "<<tmp<<endl;
-    minMaxLoc(abs(tmp),NULL,&max);
-    if(max>dmax){
-        dp/=max/dmax;
-        ret*=2;
-    }
-    tmp=_p.clone()*0;
-    tmp+=dp;
-    dp=tmp.clone();
-    
-    tmp.colRange(3,6)*=.01;
-    tmp=tmp*cameraMatrix.at<double>(0,0);
-//     cout<<fixed<<setprecision(8)<<"bound: "<<tmp<<endl;
-    
-    _p+=dp;
-    
-    
-    return ret;
+    _p.colRange(0,numParams)+=dp;
+    return true;
 }

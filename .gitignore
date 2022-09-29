@@ -1,5 +1,6 @@
 Trajectory_30_seconds/*
-build/
+.vscode/
+*/build/
 dtam/
 nbproject/
 *.nvvp

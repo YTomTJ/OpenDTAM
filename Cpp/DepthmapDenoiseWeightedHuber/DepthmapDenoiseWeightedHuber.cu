@@ -1,8 +1,8 @@
-#include <opencv2/gpu/device/common.hpp>//for cudaSafeCall
+#include <opencv2/core/cuda/common.hpp>
 #include <opencv2/core/core.hpp>//for CV_Assert
 #include "DepthmapDenoiseWeightedHuber.cuh"
 
-namespace cv { namespace gpu { namespace device {
+namespace cv { namespace cuda {
     namespace dtam_denoise{
 
 
@@ -21,7 +21,7 @@ const int BLOCKX2D=32;
 const int BLOCKY2D=32;
 #define GENERATE_CUDA_FUNC2D(funcName,arglist,notypes)                                     \
 static __global__ void funcName arglist;                                                        \
-void funcName##Caller arglist{                                                           \
+void funcName##Caller arglisGENERATE_CUDA_FUNC2Dt{                                                           \
    dim3 dimBlock(BLOCKX2D,BLOCKY2D);                                                                  \
    dim3 dimGrid((acols  + dimBlock.x - 1) / dimBlock.x,                                  \
                 (arows + dimBlock.y - 1) / dimBlock.y);                                  \
@@ -95,8 +95,9 @@ GENERATE_CUDA_FUNC2DROWS(computeG1,
     ph=pp[pt];
     pn=pp[pt+blockDim.x];
 
-    pr=__shfl_down(ph,2);
-    tmp=__shfl_up(pn,30);
+    //pr=__shfl_down_sync(ph,2); 
+    pr = __shfl_down_sync(0xffffffff, ph, 2);
+    tmp= __shfl_up_sync(0xffffffff, pn,30);
     if(threadIdx.x>=30){
         pr=tmp;
     }
@@ -107,8 +108,8 @@ GENERATE_CUDA_FUNC2DROWS(computeG1,
 
     // g0 is the strongest nearby gradient (excluding point defects)
         gt=fabsf(pr-pl);
-        g0x=__shfl_up(gt,1);//?xxxxxx no prior val
-        gsav=__shfl_down(gt,31);//x000000 for next time
+        g0x=__shfl_up_sync(0xffffffff,gt,1);//?xxxxxx no prior val
+        gsav=__shfl_down_sync(0xffffffff,gt,31);//x000000 for next time
         g0x=threadIdx.x>0?g0x:0.0f;//0xxxxxx
         g0y=fabsf(pd-pu);
 
@@ -125,8 +126,8 @@ GENERATE_CUDA_FUNC2DROWS(computeG1,
         pt=x+y*cols;
         ph=pn;
         pn=pp[pt+blockDim.x];
-        pr=__shfl_down(ph,2);
-        tmp=__shfl_up(pn,30);
+        pr=__shfl_down_sync(0xffffffff,ph,2);
+        tmp=__shfl_up_sync(0xffffffff,pn,30);
         pr=threadIdx.x>=30?tmp:pr;
 
         pl=ph;
@@ -135,9 +136,9 @@ GENERATE_CUDA_FUNC2DROWS(computeG1,
 
         // g0 is the strongest nearby gradient (excluding point defects)
             gt=fabsf(pr-pl);
-            g0x=__shfl_up(gt,1);//?xxxxxx
+            g0x=__shfl_up_sync(0xffffffff,gt,1);//?xxxxxx
             g0x=threadIdx.x>0?g0x:gsav;//xxxxxxx
-            gsav=__shfl_down(gt,31);//x000000 for next time
+            gsav=__shfl_down_sync(0xffffffff,gt,31);//x000000 for next time
             g0y=fabsf(pd-pu);
 
             g0=fmaxf(g0x,g0y);
@@ -152,14 +153,14 @@ GENERATE_CUDA_FUNC2DROWS(computeG1,
     //itr n-1
     pt=x+y*cols;
     ph=pn;
-    pr=__shfl_down(ph,2);
+    pr=__shfl_down_sync(0xffffffff, ph,2);
     pl=ph;
     pu=pp[pt+upoff];
     pd=pp[pt+dnoff];
 
     // g0 is the strongest nearby gradient (excluding point defects)
         gt=fabsf(pr-pl);
-        g0x=__shfl_up(gt,1);//?xxxxxx
+        g0x=__shfl_up_sync(0xffffffff,gt,1);//?xxxxxx
         g0x=threadIdx.x>0?g0x:gsav;//xxxxxxx
         g0y=fabsf(pd-pu);
 
@@ -190,8 +191,8 @@ GENERATE_CUDA_FUNC2DROWS(computeG2,
 
     g1h=g1p[pt];
     g1n=g1p[pt+blockDim.x];
-    g1r=__shfl_down(g1h,1);
-    tmp=__shfl_up(g1n,31);
+    g1r=__shfl_down_sync(0xffffffff,g1h,1);
+    tmp=__shfl_up_sync(0xffffffff,g1n,31);
     if(threadIdx.x>=31){
         g1r=tmp;
     }
@@ -211,8 +212,8 @@ GENERATE_CUDA_FUNC2DROWS(computeG2,
         pt=x+y*cols;
         g1h=g1n;
         g1n=g1p[pt+blockDim.x];
-        g1r=__shfl_down(g1h,1);
-        tmp=__shfl_up(g1n,31);
+        g1r=__shfl_down_sync(0xffffffff,g1h,1);
+        tmp=__shfl_up_sync(0xffffffff,g1n,31);
         g1r=threadIdx.x>=31?tmp:g1r;
 
         g1l=g1h;
@@ -229,7 +230,7 @@ GENERATE_CUDA_FUNC2DROWS(computeG2,
     //itr n-1
     pt=x+y*cols;
     g1h=g1n;
-    g1r=__shfl_down(g1h,1);
+    g1r=__shfl_down_sync(0xffffffff,g1h,1);
     g1l=g1h;
     g1u=g1h;
     g1d=g1p[pt+dnoff];
@@ -287,8 +288,8 @@ GENERATE_CUDA_FUNC2DROWS(computeGunsafe,
     ph=pp[pt];
     pn=pp[pt+blockDim.x];
 
-    pr=__shfl_down(ph,2);
-    tmp=__shfl_up(pn,30);
+    pr=__shfl_down_sync(0xffffffff,ph,2);
+    tmp=__shfl_up_sync(0xffffffff,pn,30);
     if(threadIdx.x>=30){
         pr=tmp;
     }
@@ -299,8 +300,8 @@ GENERATE_CUDA_FUNC2DROWS(computeGunsafe,
 
     // g0 is the strongest nearby gradient (excluding point defects)
         gt=fabsf(pr-pl);
-        g0x=__shfl_up(gt,1);//?xxxxxx no prior val
-        gsav=__shfl_down(gt,31);//x000000 for next time
+        g0x=__shfl_up_sync(0xffffffff,gt,1);//?xxxxxx no prior val
+        gsav=__shfl_down_sync(0xffffffff,gt,31);//x000000 for next time
         g0x=threadIdx.x>0?g0x:0.0f;//0xxxxxx
         g0y=fabsf(pd-pu);
 
@@ -317,8 +318,8 @@ GENERATE_CUDA_FUNC2DROWS(computeGunsafe,
         pt=x+y*cols;
         ph=pn;
         pn=pp[pt+blockDim.x];
-        pr=__shfl_down(ph,2);
-        tmp=__shfl_up(pn,30);
+        pr=__shfl_down_sync(0xffffffff,ph,2);
+        tmp=__shfl_up_sync(0xffffffff,pn,30);
         pr=threadIdx.x>=30?tmp:pr;
 
         pl=ph;
@@ -327,9 +328,9 @@ GENERATE_CUDA_FUNC2DROWS(computeGunsafe,
 
         // g0 is the strongest nearby gradient (excluding point defects)
             gt=fabsf(pr-pl);
-            g0x=__shfl_up(gt,1);//?xxxxxx
+            g0x=__shfl_up_sync(0xffffffff,gt,1);//?xxxxxx
             g0x=threadIdx.x>0?g0x:gsav;//xxxxxxx
-            gsav=__shfl_down(gt,31);//x000000 for next time
+            gsav=__shfl_down_sync(0xffffffff,gt,31);//x000000 for next time
             g0y=fabsf(pd-pu);
 
             g0=fmaxf(g0x,g0y);
@@ -344,14 +345,14 @@ GENERATE_CUDA_FUNC2DROWS(computeGunsafe,
     //itr n-1
     pt=x+y*cols;
     ph=pn;
-    pr=__shfl_down(ph,2);
+    pr=__shfl_down_sync(0xffffffff,ph,2);
     pl=ph;
     pu=pp[pt+upoff];
     pd=pp[pt+dnoff];
 
     // g0 is the strongest nearby gradient (excluding point defects)
         gt=fabsf(pr-pl);
-        g0x=__shfl_up(gt,1);//?xxxxxx
+        g0x=__shfl_up_sync(0xffffffff,gt,1);//?xxxxxx
         g0x=threadIdx.x>0?g0x:gsav;//xxxxxxx
         g0y=fabsf(pd-pu);
 
@@ -370,8 +371,8 @@ GENERATE_CUDA_FUNC2DROWS(computeGunsafe,
 
     g1h=g1p[pt];
     g1n=g1p[pt+blockDim.x];
-    g1r=__shfl_down(g1h,1);
-    tmp=__shfl_up(g1n,31);
+    g1r=__shfl_down_sync(0xffffffff,g1h,1);
+    tmp=__shfl_up_sync(0xffffffff,g1n,31);
     if(threadIdx.x>=31){
         g1r=tmp;
     }
@@ -391,8 +392,8 @@ GENERATE_CUDA_FUNC2DROWS(computeGunsafe,
         pt=x+y*cols;
         g1h=g1n;
         g1n=g1p[pt+blockDim.x];
-        g1r=__shfl_down(g1h,1);
-        tmp=__shfl_up(g1n,31);
+        g1r=__shfl_down_sync(0xffffffff,g1h,1);
+        tmp=__shfl_up_sync(0xffffffff,g1n,31);
         g1r=threadIdx.x>=31?tmp:g1r;
 
         g1l=g1h;
@@ -409,7 +410,7 @@ GENERATE_CUDA_FUNC2DROWS(computeGunsafe,
     //itr n-1
     pt=x+y*cols;
     g1h=g1n;
-    g1r=__shfl_down(g1h,1);
+    g1r=__shfl_down_sync(0xffffffff,g1h,1);
     g1l=g1h;
     g1u=g1h;
     g1d=g1p[pt+dnoff];
@@ -723,12 +724,12 @@ GENERATE_CUDA_FUNC2DROWS(updateQ,
 
                 }
                 gqx=gqxpt[pt];
-                gx=gxpt[pt]+.005f;
+                gx=gxpt[pt]+.01f;
 //                gx=1.0f;
             }
 
-            dr=__shfl_down(dh,1);
-            tmp=__shfl_up(dn,31);
+            dr=__shfl_down_sync(0xffffffff,dh,1);
+            tmp=__shfl_up_sync(0xffffffff,dn,31);
             if (rt && x<cols-32)
                 dr=tmp;
             qx = gqx/gx;
@@ -745,7 +746,7 @@ GENERATE_CUDA_FUNC2DROWS(updateQ,
             //load
                     {
                         gqy=gqypt[pt];
-                        gy=gypt[pt]+.005f;
+                        gy=gypt[pt]+.01f;
 //                        gy=1.0f;
                     }
             s[bpt]=dh;
@@ -852,10 +853,10 @@ GENERATE_CUDA_FUNC2DROWS(updateD,
         {
             float gqr,gql;
             gqr=gqx=gqxpt[pt];
-            gql=__shfl_up(gqx,1);
+            gql=__shfl_up_sync(0xffffffff, gqx,1);
             if (lf)
                 gql=gqsave;
-            gqsave=__shfl_down(gqx,31);//save for next iter
+            gqsave=__shfl_down_sync(0xffffffff,gqx,31);//save for next iter
             dacc = gqr - gql;//dx part
         }
         //dy update and d store
@@ -888,4 +889,4 @@ GENERATE_CUDA_FUNC2DROWS(updateD,
 }
 
 
-}}}}
+}}}
