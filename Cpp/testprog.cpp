@@ -32,8 +32,33 @@ int App_main( int argc, char** argv );
 void myExit(){
     ImplThread::stopAllThreads();
 }
+
+bool isDeviceCompatible()
+{
+    int device_id = cv::cuda::getDevice();
+    if (device_id < 0)
+        return false;
+
+    int major = 0, minor = 0;
+    cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, device_id);
+    cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, device_id);
+
+    if (cv::cuda::TargetArchs::hasEqualOrLessPtx(major, minor))
+        return true;
+
+    for (int i = minor; i >= 0; i--)
+        if (cv::cuda::TargetArchs::hasBin(major, i))
+            return true;
+
+    return false;
+}
+
 int main( int argc, char** argv ){
 
+    cv::cuda::setDevice(0);
+    isDeviceCompatible();
+    cv::cuda::printShortCudaDeviceInfo(cv::cuda::getDevice());
+    
     initGui();
 
     int ret=App_main(argc, argv);

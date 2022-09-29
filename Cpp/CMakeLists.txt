@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.0)
-# set(CMAKE_BUILD_TYPE Debug) 
+set(CMAKE_BUILD_TYPE Debug) 
 
 project(dtam)
 cmake_policy(SET CMP0012 NEW)
@@ -53,6 +53,7 @@ set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};
   #-gencode arch=compute_35,code=sm_35;
   #-gencode arch=compute_50,code=sm_50;
   -gencode arch=compute_70,code=sm_70;
+  -gencode=arch=compute_75,code=compute_75;
   --use_fast_math;
   --restrict;
   -lineinfo;
