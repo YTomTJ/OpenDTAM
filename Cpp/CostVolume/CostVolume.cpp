@@ -12,7 +12,6 @@
 // #include <opencv2/cudaimgproc.hpp>
 
 #include "utils/utils.hpp"
-#include "utils/tinyMat.hpp"
 #include "graphics.hpp"
 #include <iostream>
 

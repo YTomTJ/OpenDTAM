@@ -188,7 +188,6 @@ int App_main(int argc, char **argv)
     CostVolume cv(images[0], (FrameID)0, layers, 0.015, 0.0, Rs[0], Ts[0], K);
 
     // Old Way
-    int imageNum = 0;
     int inc = 1;
 
     cv::cuda::Stream s;
@@ -221,11 +220,6 @@ int App_main(int argc, char **argv)
             GpuMat d;
             denoiser.cacheGValues();
             ret = image * 0;
-            //             pfShow("A function", ret, 0, cv::Vec2d(0, layers));
-            //             pfShow("D function", ret, 0, cv::Vec2d(0, layers));
-            //             pfShow("A function loose", ret, 0, cv::Vec2d(0, layers));
-            //             pfShow("Predicted Image",ret,0,Vec2d(0,1));
-            //             pfShow("Actual Image",ret);
 
             cv.loInd.download(ret);
             pfShow("loInd", ret, 0, cv::Vec2d(0, layers));
@@ -238,10 +232,6 @@ int App_main(int argc, char **argv)
             do { // optimizing the depth map,
                  // nb 'A'matrix, 'a' element of the auxiliary variable alpha
                  // 'd' is the denoiser
-                //                 cout<<"Theta: "<< optimizer.getTheta()<<endl;
-                //
-                //                 if(Acount==0)
-                //                     gpause();
                 a.download(ret);
                 pfShow("A function", ret, 0, cv::Vec2d(0, layers));
 
@@ -249,27 +239,18 @@ int App_main(int argc, char **argv)
                     d = denoiser(a, optimizer.epsilon,
                         optimizer.getTheta()); // 10 iterations of denoiser, fed optimizer.epsilon
                     QDcount++;
-
-                    //                    denoiser._qx.download(ret);
-                    //                    pfShow("Q function:x direction", ret, 0, cv::Vec2d(-1,
-                    //                    1)); denoiser._qy.download(ret); pfShow("Q function:y
-                    //                    direction", ret, 0, cv::Vec2d(-1, 1));
                     d.download(ret);
                     pfShow("D function", ret, 0, cv::Vec2d(0, layers));
                 }
                 doneOptimizing = optimizer.optimizeA(d, a); // optimizeA(d,a)
                 Acount++;
             } while (!doneOptimizing);
-            //             optimizer.lambda=.05;
-            //             optimizer.theta=10000;
-            //             optimizer.optimizeA(a,a);
+            // optimizer.lambda=.05;
+            // optimizer.theta=10000;
+            // optimizer.optimizeA(a,a);
             optimizer.cvStream.waitForCompletion();
             a.download(ret);
             pfShow("A function loose", ret, 0, cv::Vec2d(0, layers));
-            //                gpause();
-            //             cout<<"A iterations: "<< Acount<< "  QD iterations: "<<QDcount<<endl;
-            //             pfShow("Depth Solution", optimizer.depthMap(), 0, cv::Vec2d(cv.far,
-            //             cv.near)); imwrite("outz.png",ret);
 
             Track tracker(cv); // tracking - find the pose transform to the current frame
             Mat out = optimizer.depthMap();
@@ -299,15 +280,13 @@ int App_main(int argc, char **argv)
                 }
                 cout << i << endl;
                 cout << Rs0[i] << Rs[i];
+                // Display
                 reprojectCloud(images[i], images[cv.fid], tracker.depth,
                     RTToP(Rs[cv.fid], Ts[cv.fid]), RTToP(Rs[i], Ts[i]), K);
             }
             cv = CostVolume(images[imageNum], (FrameID)imageNum, layers, 0.015, 0.0, Rs[imageNum],
                 Ts[imageNum], K);
             s = optimizer.cvStream;
-            //             for (int imageNum=0;imageNum<numImg;imageNum=imageNum+1){
-            //                 reprojectCloud(images[imageNum],images[0],optimizer.depthMap(),RTToP(Rs[0],Ts[0]),RTToP(Rs[imageNum],Ts[imageNum]),cameraMatrix);
-            //             }
             a.download(ret);
         }
         s.waitForCompletion(); // so we don't lock the whole system up forever
