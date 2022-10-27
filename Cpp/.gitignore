@@ -1,0 +1,11 @@
+.vscode/
+*/build/
+*.nvvp
+.cproject
+.project
+.settings/
+*.o
+*.out
+*~
+*.kdev*
+*kate-swp*

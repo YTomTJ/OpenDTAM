@@ -59,7 +59,7 @@ set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};
   -lineinfo;
   -O3
 )
-cuda_add_library(OpenDTAM SHARED ${DTAM_SOURCES} OpenDTAM.cpp)
+cuda_add_library(OpenDTAM SHARED ${DTAM_SOURCES})
 target_link_libraries(OpenDTAM pthread opencv_cudaimgproc opencv_cudastereo ${Boost_LIBRARIES})
-add_executable (a.out testprog.cpp convertAhandaPovRayToStandard.cpp graphics.cpp)
-target_link_libraries( a.out  OpenDTAM ${OpenCV_LIBS} ${Boost_LIBRARIES})
+add_executable (dtam testprog.cpp convertAhandaPovRayToStandard.cpp graphics.cpp)
+target_link_libraries(dtam OpenDTAM ${OpenCV_LIBS} ${Boost_LIBRARIES})
