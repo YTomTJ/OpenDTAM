@@ -7,16 +7,12 @@ namespace fs = boost::filesystem;
 #include <boost/algorithm/string.hpp>
 
 // Mine
-#include "CostVolume/utils/reproject.hpp"
 #include "CostVolume/utils/reprojectCloud.hpp"
-#include "CostVolume/Cost.h"
 #include "CostVolume/CostVolume.hpp"
-#include "Optimizer/Optimizer.hpp"
 #include "DepthmapDenoiseWeightedHuber/DepthmapDenoiseWeightedHuber.hpp"
-// #include "OpenDTAM.hpp"
+#include "Optimizer/Optimizer.hpp"
 #include "graphics.hpp"
 #include "Track/Track.hpp"
-
 #include "utils/utils.hpp"
 
 // debug
