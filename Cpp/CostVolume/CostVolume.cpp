@@ -228,41 +228,47 @@ void CostVolume::updateCost(const Mat &_image, const cv::Mat &R, const cv::Mat &
     // find projection matrix from cost volume to image (3x4)
     Mat viewMatrixImage;
     RTToP(R, T, viewMatrixImage);
-    Mat cameraMatrixTex(3, 4, CV_64FC1);
-    cameraMatrixTex = 0.0;
-    cameraMatrix.copyTo(cameraMatrixTex(Range(0, 3), Range(0, 3)));
-    cameraMatrixTex(Range(0, 2), Range(2, 3)) += 0.5; // add 0.5 to x,y out //removing causes crash
 
-    Mat imFromWorld = cameraMatrixTex * viewMatrixImage; // 3x4
+    Mat K(3, 4, CV_64FC1);
+    K = 0.0;
+    cameraMatrix.copyTo(K(Range(0, 3), Range(0, 3)));
+
+    // ytom: not exactly! <add 0.5 to x,y out //removing causes crash>
+    // K(Range(0, 2), Range(2, 3)) += 0.5;
+
+    Mat imFromWorld = K * viewMatrixImage; // 3x4
     Mat imFromCV = imFromWorld * projection.inv();
     assert(baseImage.isContinuous());
     assert(lo.isContinuous());
     assert(hi.isContinuous());
     assert(loInd.isContinuous());
 
-    // for each slice
-    for (int y = 0; y < rows; y++) {
-        // find projection from slice to image (3x3)
-        double *p = (double *)imFromCV.data;
-        m33 sliceToIm = { p[0], p[2], p[3] + y * p[1], p[4], p[6], p[7] + y * p[5], p[8], p[10],
-            p[11] + y * p[9] };
+    // // for each slice
+    // for (int y = 0; y < rows; y++) {
+    //     // find projection from slice to image (3x3)
+    //     double *p = (double *)imFromCV.data;
+    //     m33 sliceToIm = {
+    //         p[0], p[2], p[3] + y * p[1], //
+    //         p[4], p[6], p[7] + y * p[5], //
+    //         p[8], p[10], p[11] + y * p[9] //
+    //     };
+    //     //        //kernel updates slice (1 block?)
+    //     //        updateCostColCaller(cols,1, y, sliceToIm);
+    //     //        passThroughCaller(cols,rows);
+    //     //        cudaSafeCall( cudaDeviceSynchronize() );
+    //     // per thread:
+    //     // find projection from column to image (3x2)
+    //     // for each pixel:
+    //     // finds L1 error
+    //     // blend in with old value
+    //     // if low
+    //     // update low index
+    //     // update high value
+    //     // if high
+    //     // update high value
+    //     // save results
+    // }
 
-        //        //kernel updates slice (1 block?)
-        //        updateCostColCaller(cols,1, y, sliceToIm);
-        //        passThroughCaller(cols,rows);
-        //        cudaSafeCall( cudaDeviceSynchronize() );
-        // per thread:
-        // find projection from column to image (3x2)
-        // for each pixel:
-        // finds L1 error
-        // blend in with old value
-        // if low
-        // update low index
-        // update high value
-        // if high
-        // update high value
-        // save results
-    }
     double *p = (double *)imFromCV.data;
     m34 persp;
     for (int i = 0; i < 12; i++)

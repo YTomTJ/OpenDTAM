@@ -184,9 +184,8 @@ int App_main(int argc, char **argv)
 
     // Old Way
     int inc = 1;
-
-    cv::cuda::Stream s;
     Mat image, R, T;
+    cv::cuda::Stream s;
 
     for (int imageNum = 1; imageNum < numImg; imageNum++) {
         if (inc == -1 && imageNum < 4) {
