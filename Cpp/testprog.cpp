@@ -208,24 +208,21 @@ int App_main(int argc, char **argv)
             DepthmapDenoiseWeightedHuber &denoiser = *dp;
             Optimizer optimizer(cv);
             optimizer.initOptimization();
+
             GpuMat a(cv.loInd.size(), cv.loInd.type());
             cv.loInd.copyTo(a, cv.cvStream);
-            //            cv.cvStream.enqueueCopy(cv.loInd,a);
+
             GpuMat d;
             denoiser.cacheGValues();
             ret = image * 0;
 
             cv.loInd.download(ret);
             pfShow("loInd", ret, 0, cv::Vec2d(0, layers));
-            //                waitKey(0);
-            //                gpause();
 
             bool doneOptimizing;
             int Acount = 0;
             int QDcount = 0;
-            do { // optimizing the depth map,
-                 // nb 'A'matrix, 'a' element of the auxiliary variable alpha
-                 // 'd' is the denoiser
+            do {
                 a.download(ret);
                 pfShow("A function", ret, 0, cv::Vec2d(0, layers));
 
@@ -236,15 +233,18 @@ int App_main(int argc, char **argv)
                     d.download(ret);
                     pfShow("D function", ret, 0, cv::Vec2d(0, layers));
                 }
+
                 doneOptimizing = optimizer.optimizeA(d, a); // optimizeA(d,a)
                 Acount++;
             } while (!doneOptimizing);
-            // optimizer.lambda=.05;
-            // optimizer.theta=10000;
-            // optimizer.optimizeA(a,a);
+
+            // // optimizer.lambda=.05;
+            // // optimizer.theta=10000;
+            // // optimizer.optimizeA(a,a);
             optimizer.cvStream.waitForCompletion();
-            a.download(ret);
-            pfShow("A function loose", ret, 0, cv::Vec2d(0, layers));
+
+            // a.download(ret);
+            // pfShow("A function loose", ret, 0, cv::Vec2d(0, layers));
 
             Track tracker(cv); // tracking - find the pose transform to the current frame
             Mat out = optimizer.depthMap();
@@ -281,7 +281,7 @@ int App_main(int argc, char **argv)
             cv = CostVolume(images[imageNum], (FrameID)imageNum, layers, 0.015, 0.0, Rs[imageNum],
                 Ts[imageNum], K);
             s = optimizer.cvStream;
-            a.download(ret);
+            // a.download(ret);
         }
         s.waitForCompletion(); // so we don't lock the whole system up forever
     }
