@@ -3,43 +3,28 @@
 
 #include <iostream>
 #include <ctime>
+#include <boost/date_time.hpp>
+
+static double wall_time()
+{
+    static const boost::posix_time::ptime t0(boost::gregorian::date(1970, 1, 1));
+    const boost::posix_time::ptime t1 = boost::posix_time::microsec_clock::local_time();
+    const boost::posix_time::time_duration dt(t1 - t0);
+    return dt.total_microseconds() / 1e6;
+}
 
 // Just a static variable that will be visible only within this file
 
-static struct timespec start_time;
-static void tic() {
-clock_gettime(CLOCK_MONOTONIC, &start_time);
+static double start_time = 0;
+static void tic() { start_time = wall_time(); }
 
-}
-
-static double toc() {
-  struct timespec tv2;
-
-  if (clock_gettime(CLOCK_MONOTONIC, &tv2))
-    tv2.tv_sec = tv2.tv_nsec = -1;
-
-  double  sec = static_cast<double>(tv2.tv_sec - start_time.tv_sec);
-  double nsec = static_cast<double>(tv2.tv_nsec - start_time.tv_nsec);
-
-  double elapsed= (sec + 1.0e-9 * nsec);
-
-    time_t end_time=time(0);
-    std::cout<<"Elapsed time is "<<elapsed<<" seconds."<<std::endl;
-    return elapsed;
-}
-static double tocq() {
-    struct timespec tv2;
-    
-    if (clock_gettime(CLOCK_MONOTONIC, &tv2))
-        tv2.tv_sec = tv2.tv_nsec = -1;
-    
-    double  sec = static_cast<double>(tv2.tv_sec - start_time.tv_sec);
-    double nsec = static_cast<double>(tv2.tv_nsec - start_time.tv_nsec);
-    
-    double elapsed= (sec + 1.0e-9 * nsec);
-    
-    time_t end_time=time(0);
+static double toc()
+{
+    double elapsed = wall_time() - start_time;
+    std::cout << "Elapsed time is " << elapsed << " seconds." << std::endl;
     return elapsed;
 }
 
-#endif //TIC_TOC
+static double tocq() { return wall_time() - start_time; }
+
+#endif // TIC_TOC
