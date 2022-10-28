@@ -15,7 +15,6 @@ namespace fs = boost::filesystem;
 #include "DepthmapDenoiseWeightedHuber/DepthmapDenoiseWeightedHuber.hpp"
 // #include "OpenDTAM.hpp"
 #include "graphics.hpp"
-#include "set_affinity.h"
 #include "Track/Track.hpp"
 
 #include "utils/utils.hpp"
