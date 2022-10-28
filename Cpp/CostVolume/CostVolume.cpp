@@ -25,20 +25,22 @@ void CostVolume::solveProjection(const cv::Mat &R, const cv::Mat &T)
     projection.create(4, 4, CV_64FC1);
     projection = 0.0;
     projection(Range(0, 2), Range(0, 3)) += cameraMatrix.rowRange(0, 2);
-
     projection.at<double>(2, 3) = 1.0;
     projection.at<double>(3, 2) = 1.0;
-    //    {//debug
-    //        cout<<"Augmented Camera Matrix:\n"<<projection<<endl;
-    //    }
+    projection = projection * P;
+    projection.at<double>(2, 2) = -far;
+    projection.row(2) /= depthStep;
 
-    projection = projection * P; // projection now goes x_world,y_world,z_world -->x_cv_px, y_cv_px
-                                 // , 1/z_from_camera_center
-    projection.at<double>(2, 2) = -far; // put the origin at 1/z_from_camera_center=near
-    projection.row(2) /= depthStep; // stretch inverse depth so now x_world,y_world,z_world
-                                    // -->x_cv_px, y_cv_px , 1/z_cv_px
-
-    // exit(0);
+    // APPLICATION:
+    // Backward:
+    //  projection4x4^{-1}.{u,v,0,1} = P^{-1}.{(u-cx)/fx, (v-cy)/fy, 1, far} = .P^{-1}.X and then 1/d * X = {x,y,z}
+    //  projection4x4^{-1}.{0,0,1,0} = P^{-1}.{0,0,0,ds}
+    // Forward: {x,y,z,1} = P.{x0,y0,z0,1}
+    //  projection3x4.{x,y,z,1} / z = {(fxx+cxz_/z, (fyy+cyz)/z, (1/z-far)/ds, 1} =
+    // {u,v,(d-far)/ds,1} = {u,v,h,1} where h is the index of layer
+    // Next:
+    //  projection4x4 * projection4x4^{-1}.{u,v,0,1} = P'.P^{-1}.{u,v,far}
+    //  projection4x4 * projection4x4^{-1}.{0,0,1,0} = P'.P^{-1}.{0,0,ds}
 }
 
 void CostVolume::checkInputs(const cv::Mat &R, const cv::Mat &T, const cv::Mat &_cameraMatrix)
@@ -119,12 +121,6 @@ void CostVolume::simpleTex(const Mat &image, Stream cvStream)
 {
     cudaArray_t &cuArray = *((cudaArray_t *)(char *)_cuArray);
     cudaTextureObject_t &texObj = *((cudaTextureObject_t *)(char *)_texObj);
-
-    //     cudaArray*& cuArray=*((cudaArray**)((char*)_cuArray));
-    //     if(!_texObj){
-    //         _texObj=Ptr<char>((char*)new cudaTextureObject_t);
-    //     }
-    //     cudaTextureObject_t texObj=*(cudaTextureObject_t*)(char*)_texObj;
     assert(image.isContinuous());
     assert(image.type() == CV_8UC4);
 
@@ -136,8 +132,9 @@ void CostVolume::simpleTex(const Mat &image, Stream cvStream)
     texDesc.filterMode = cudaFilterModeLinear;
     texDesc.readMode = cudaReadModeNormalizedFloat;
     texDesc.normalizedCoords = 0;
-    cudaChannelFormatDesc channelDesc = //{8, 8, 8, 8, cudaChannelFormatKindUnsigned};
-        cudaCreateChannelDesc<uchar4>();
+
+    // {8, 8, 8, 8, cudaChannelFormatKindUnsigned};
+    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<uchar4>();
     // Fill Memory
     if (!cuArray) {
         cudaSafeCall(cudaMallocArray(&cuArray, &channelDesc, image.cols, image.rows));
@@ -238,51 +235,20 @@ void CostVolume::updateCost(const Mat &_image, const cv::Mat &R, const cv::Mat &
 
     Mat imFromWorld = K * viewMatrixImage; // 3x4
     Mat imFromCV = imFromWorld * projection.inv();
+
     assert(baseImage.isContinuous());
     assert(lo.isContinuous());
     assert(hi.isContinuous());
     assert(loInd.isContinuous());
-
-    // // for each slice
-    // for (int y = 0; y < rows; y++) {
-    //     // find projection from slice to image (3x3)
-    //     double *p = (double *)imFromCV.data;
-    //     m33 sliceToIm = {
-    //         p[0], p[2], p[3] + y * p[1], //
-    //         p[4], p[6], p[7] + y * p[5], //
-    //         p[8], p[10], p[11] + y * p[9] //
-    //     };
-    //     //        //kernel updates slice (1 block?)
-    //     //        updateCostColCaller(cols,1, y, sliceToIm);
-    //     //        passThroughCaller(cols,rows);
-    //     //        cudaSafeCall( cudaDeviceSynchronize() );
-    //     // per thread:
-    //     // find projection from column to image (3x2)
-    //     // for each pixel:
-    //     // finds L1 error
-    //     // blend in with old value
-    //     // if low
-    //     // update low index
-    //     // update high value
-    //     // if high
-    //     // update high value
-    //     // save results
-    // }
 
     double *p = (double *)imFromCV.data;
     m34 persp;
     for (int i = 0; i < 12; i++)
         persp.data[i] = p[i];
 #define CONST_ARGS                                                                                 \
-    rows, cols, layers, rows *cols, hits, data, (float *)(lo.data), (float *)(hi.data),            \
+    rows, cols, layers, rows * cols, hits, data, (float *)(lo.data), (float *)(hi.data),            \
         (float *)(loInd.data), (float3 *)(baseImage.data), (float *)baseImage.data, texObj
-    //    uint  rows, uint  cols, uint  layers, uint layerStep, float* hdata, float* cdata, float*
-    //    lo, float* hi, float* loInd, float3* base,  float* bf, cudaTextureObject_t tex);
-    //    passThroughCaller(CONST_ARGS);
-    //    perspCaller(CONST_ARGS);
-    //    volumeProjectCaller(persp,CONST_ARGS);
-    //    simpleCostCaller(persp,CONST_ARGS);
-    //    globalWeightedCostCaller(persp,.3,CONST_ARGS);
+
     float w = count++ + initialWeight; // fun parse
     w /= (w + 1);
     assert(localStream);
