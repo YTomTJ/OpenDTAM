@@ -13,6 +13,7 @@ find_package(OpenCV 4 REQUIRED)
 find_package(Qt5Core REQUIRED)
 find_package(CUDA REQUIRED)
 find_package(Boost REQUIRED COMPONENTS filesystem)
+find_package(YAML-CPP REQUIRED)
 
 # add_definitions( -D__OPENCV_BUILD=1 )
 # message(STATUS ${OpenCV_CONSIDERED_CONFIGS})
@@ -58,5 +59,9 @@ set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};
 )
 cuda_add_library(OpenDTAM SHARED ${DTAM_SOURCES})
 target_link_libraries(OpenDTAM pthread opencv_cudaimgproc opencv_cudastereo ${Boost_LIBRARIES})
-add_executable(dtam testprog.cpp graphics.cpp)
-target_link_libraries(dtam OpenDTAM ${OpenCV_LIBS} ${Boost_LIBRARIES})
+
+add_executable(testprog testprog.cpp graphics.cpp)
+target_link_libraries(testprog OpenDTAM ${OpenCV_LIBS} ${Boost_LIBRARIES} ${YAML_CPP_LIBRARIES})
+
+add_executable(dtam main.cpp graphics.cpp)
+target_link_libraries(dtam OpenDTAM ${OpenCV_LIBS} ${Boost_LIBRARIES} ${YAML_CPP_LIBRARIES})
