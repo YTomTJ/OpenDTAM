@@ -20,11 +20,6 @@ namespace fs = boost::filesystem;
 
 const static bool valgrind = 0;
 
-// A test program to make the mapper run
-using namespace cv;
-using namespace cv::cuda;
-using namespace std;
-
 int App_main(int argc, char **argv);
 
 void myExit() { ImplThread::stopAllThreads(); }
@@ -69,10 +64,10 @@ void convertAhandaPovRayToStandard(const std::string &file, Mat &R, Mat &T)
 {
     static const std::string delimiters(" =[]',;");
 
-    cout << "text_file_name = " << file << endl;
-    ifstream caminfo(file);
+    std::cout << "text_file_name = " << file << std::endl;
+    std::ifstream caminfo(file);
     if (!caminfo.is_open()) {
-        cerr << "Failed to open param file, check location of sample trajectory!" << endl;
+        std::cerr << "Failed to open param file, check location of sample trajectory!" << std::endl;
         exit(1);
     }
 
@@ -98,7 +93,7 @@ void convertAhandaPovRayToStandard(const std::string &file, Mat &R, Mat &T)
         std::string field = parts[0];
         parts.erase(parts.begin());
         std::string cmd = boost::algorithm::join(parts, "\n");
-        istringstream iss(cmd);
+        std::istringstream iss(cmd);
 
         if (field == "cam_dir") {
             iss >> direction.x;
@@ -124,17 +119,19 @@ void convertAhandaPovRayToStandard(const std::string &file, Mat &R, Mat &T)
 
 int App_main(int argc, char **argv)
 {
+    using namespace cv;
+    using namespace cv::cuda;
 
 #if !defined WIN32 && !defined _WIN32 && !defined WINCE && defined __linux__ && !defined ANDROID
     pthread_setname_np(pthread_self(), "App_main");
 #endif
 
-    const cv::Mat K0 = (Mat_<double>(3, 3) << 0.751875, 0.0, 0.5, 0.0, 1.0, 0.5, 0.0, 0.0, 1.0);
+    const Mat K0 = (Mat_<double>(3, 3) << 0.751875, 0.0, 0.5, 0.0, 1.0, 0.5, 0.0, 0.0, 1.0);
 
     fs::path source(argv[1]);
 
     int numImg = 50;
-    vector<Mat> images, Rs, Ts, Rs0, Ts0;
+    std::vector<Mat> images, Rs, Ts, Rs0, Ts0;
 
     std::vector<fs::path> image_files;
     for (auto const &e : fs::directory_iterator(source)) {
@@ -151,12 +148,12 @@ int App_main(int argc, char **argv)
 
             auto tf = f.parent_path() / (f.stem().string() + ".txt");
             convertAhandaPovRayToStandard(tf.string(), R, T);
-            cout << "Opening: " << f.string() << endl;
+            std::cout << "Opening: " << f.string() << std::endl;
 
             Mat image;
             imread(f.string(), -1).convertTo(image, CV_32FC3, 1.0 / 65535.0);
             if (image.rows != 480 || image.cols != 640) {
-                cv::resize(image, image, Size(640, 480));
+                resize(image, image, Size(640, 480));
             }
 
             images.push_back(image.clone());
@@ -175,7 +172,7 @@ int App_main(int argc, char **argv)
     int layers = 32;
     int imagesPerCV = 20;
 
-    cv::Mat K = K0.clone();
+    Mat K = K0.clone();
     K.at<double>(0, 0) *= images[0].cols;
     K.at<double>(1, 1) *= images[0].rows;
     K.at<double>(0, 2) *= images[0].cols - 1;
@@ -185,7 +182,7 @@ int App_main(int argc, char **argv)
     // Old Way
     int inc = 1;
     Mat image, R, T;
-    cv::cuda::Stream s;
+    cuda::Stream s;
 
     for (int imageNum = 1; imageNum < numImg; imageNum++) {
         if (inc == -1 && imageNum < 4) {
@@ -217,21 +214,21 @@ int App_main(int argc, char **argv)
             ret = image * 0;
 
             cv.loInd.download(ret);
-            pfShow("loInd", ret, 0, cv::Vec2d(0, layers));
+            pfShow("loInd", ret, 0, Vec2d(0, layers));
 
             bool doneOptimizing;
             int Acount = 0;
             int QDcount = 0;
             do {
                 a.download(ret);
-                pfShow("A function", ret, 0, cv::Vec2d(0, layers));
+                pfShow("A function", ret, 0, Vec2d(0, layers));
 
                 for (int i = 0; i < 10; i++) {
                     d = denoiser(a, optimizer.epsilon,
                         optimizer.getTheta()); // 10 iterations of denoiser, fed optimizer.epsilon
                     QDcount++;
                     d.download(ret);
-                    pfShow("D function", ret, 0, cv::Vec2d(0, layers));
+                    pfShow("D function", ret, 0, Vec2d(0, layers));
                 }
 
                 doneOptimizing = optimizer.optimizeA(d, a); // optimizeA(d,a)
@@ -244,7 +241,7 @@ int App_main(int argc, char **argv)
             optimizer.cvStream.waitForCompletion();
 
             // a.download(ret);
-            // pfShow("A function loose", ret, 0, cv::Vec2d(0, layers));
+            // pfShow("A function loose", ret, 0, Vec2d(0, layers));
 
             Track tracker(cv); // tracking - find the pose transform to the current frame
             Mat out = optimizer.depthMap();
@@ -266,14 +263,14 @@ int App_main(int argc, char **argv)
                 p = tracker.pose;
                 tp = RTToLie(Rs0[i], Ts0[i]);
                 { // debug
-                    cout << "True Pose: " << tp << endl;
-                    cout << "True Delta: " << LieSub(tp, tracker.basePose) << endl;
-                    cout << "Recovered Pose: " << p << endl;
-                    cout << "Recovered Delta: " << LieSub(p, tracker.basePose) << endl;
-                    cout << "Pose Error: " << p - tp << endl;
+                    std::cout << "True Pose: " << tp << std::endl;
+                    std::cout << "True Delta: " << LieSub(tp, tracker.basePose) << std::endl;
+                    std::cout << "Recovered Pose: " << p << std::endl;
+                    std::cout << "Recovered Delta: " << LieSub(p, tracker.basePose) << std::endl;
+                    std::cout << "Pose Error: " << p - tp << std::endl;
                 }
-                cout << i << endl;
-                cout << Rs0[i] << Rs[i];
+                std::cout << i << std::endl;
+                std::cout << Rs0[i] << Rs[i];
                 // Display
                 reprojectCloud(images[i], images[cv.fid], tracker.depth,
                     RTToP(Rs[cv.fid], Ts[cv.fid]), RTToP(Rs[i], Ts[i]), K);
