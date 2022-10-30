@@ -32,10 +32,9 @@ public:
     cv::cuda::GpuMat loInd;
 
     float *data;
-    float *hits;
-
     cv::cuda::GpuMat dataContainer;
-    cv::cuda::GpuMat hitContainer;
+    // float *hits;
+    // cv::cuda::GpuMat hitContainer;
 
     int count;
     cv::cuda::Stream cvStream;

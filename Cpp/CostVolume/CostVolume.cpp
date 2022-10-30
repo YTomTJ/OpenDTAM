@@ -33,11 +33,12 @@ void CostVolume::solveProjection(const cv::Mat &R, const cv::Mat &T)
 
     // APPLICATION:
     // Backward:
-    //  projection4x4^{-1}.{u,v,0,1} = P^{-1}.{(u-cx)/fx, (v-cy)/fy, 1, far} = .P^{-1}.X and then 1/d * X = {x,y,z}
-    //  projection4x4^{-1}.{0,0,1,0} = P^{-1}.{0,0,0,ds}
+    //  projection4x4^{-1}.{u,v,0,1} = P^{-1}.{(u-cx)/fx, (v-cy)/fy, 1, far} = .P^{-1}.X and then
+    //  1/d * X = {x,y,z} projection4x4^{-1}.{0,0,1,0} = P^{-1}.{0,0,0,ds}
     // Forward: {x,y,z,1} = P.{x0,y0,z0,1}
     //  projection3x4.{x,y,z,1} / z = {(fxx+cxz_/z, (fyy+cyz)/z, (1/z-far)/ds, 1} =
-    // {u,v,(d-far)/ds,1} = {u,v,h,1} where h is the index of layer
+    //  {u,v,(d-far)/ds,1} = {u,v,h,1} where h is the index of layer
+    //      NOTE: u,v,h are in pixel indexing, i.e. 1...N / 0...(N-1)
     // Next:
     //  projection4x4 * projection4x4^{-1}.{u,v,0,1} = P'.P^{-1}.{u,v,far}
     //  projection4x4 * projection4x4^{-1}.{0,0,1,0} = P'.P^{-1}.{0,0,ds}
@@ -105,7 +106,7 @@ CostVolume::CostVolume(Mat image, FrameID _fid, int _layers, float _near, float 
     dataContainer.setTo(Scalar(initialCost), cvStream);
 
     data = (float *)dataContainer.data;
-    hits = (float *)hitContainer.data;
+    // hits = (float *)hitContainer.data;
 
     count = 0;
 
@@ -245,8 +246,9 @@ void CostVolume::updateCost(const Mat &_image, const cv::Mat &R, const cv::Mat &
     m34 persp;
     for (int i = 0; i < 12; i++)
         persp.data[i] = p[i];
+
 #define CONST_ARGS                                                                                 \
-    rows, cols, layers, rows * cols, hits, data, (float *)(lo.data), (float *)(hi.data),            \
+    rows, cols, layers, rows *cols, NULL, data, (float *)(lo.data), (float *)(hi.data),            \
         (float *)(loInd.data), (float3 *)(baseImage.data), (float *)baseImage.data, texObj
 
     float w = count++ + initialWeight; // fun parse
