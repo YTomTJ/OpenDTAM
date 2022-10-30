@@ -47,6 +47,7 @@ class ImplThreadLauncher {
 
         (object->*(pass->func))(pass->stop);
         delete pass;
+        return NULL;
     }
 
 public:

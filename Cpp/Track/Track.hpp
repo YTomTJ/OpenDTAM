@@ -22,7 +22,7 @@ public:
     cv::Mat lastFrame;
 
     Track(Cost cost);
-    Track(CostVolume cost);
+    Track(const CostVolume &cost);
     void addFrame(cv::Mat frame);
     void ESM();
     void cacheDerivatives();

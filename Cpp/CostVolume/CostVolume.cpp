@@ -22,14 +22,14 @@ void CostVolume::solveProjection(const cv::Mat &R, const cv::Mat &T)
 {
     Mat P;
     RTToP(R, T, P);
-    projection.create(4, 4, CV_64FC1);
-    projection = 0.0;
-    projection(Range(0, 2), Range(0, 3)) += cameraMatrix.rowRange(0, 2);
-    projection.at<double>(2, 3) = 1.0;
-    projection.at<double>(3, 2) = 1.0;
-    projection = projection * P;
-    projection.at<double>(2, 2) = -far;
-    projection.row(2) /= depthStep;
+    c.projection.create(4, 4, CV_64FC1);
+    c.projection = 0.0;
+    c.projection(Range(0, 2), Range(0, 3)) += _K.rowRange(0, 2);
+    c.projection.at<double>(2, 3) = 1.0;
+    c.projection.at<double>(3, 2) = 1.0;
+    c.projection = c.projection * P;
+    c.projection.at<double>(2, 2) = -_far;
+    c.projection.row(2) /= _depthStep;
 
     // APPLICATION:
     // Backward:
@@ -65,50 +65,50 @@ void CostVolume::checkInputs(const cv::Mat &R, const cv::Mat &T, const cv::Mat &
         dst = dst.reshape(0, rows);                                                                \
     }
 #define FLATALLOC(n)                                                                               \
-    n.create(1, rows *cols, CV_32FC1);                                                             \
-    n = n.reshape(0, rows)
+    n.create(1, _rows *_cols, CV_32FC1);                                                           \
+    n = n.reshape(0, _rows)
 
-CostVolume::CostVolume(Mat image, FrameID _fid, int _layers, float _near, float _far, cv::Mat R,
-    cv::Mat T, cv::Mat _cameraMatrix, float initialCost, float initialWeight)
-    : R(R)
-    , T(T)
-    , initialWeight(initialWeight)
+CostVolume::CostVolume(Mat image, FrameID _fid, int _layers, float _near, float _far, cv::Mat r,
+    cv::Mat t, cv::Mat k, float initialCost, float initialWeight)
+    : _initialWeight(initialWeight)
+    , _rows(image.rows)
+    , _cols(image.cols)
+    , _layers(_layers)
+    , _near(_near)
+    , _far(_far)
+    , _depthStep((_near - _far) / (_layers - 1))
+    , _K(k.clone())
 {
+    c.fid = _fid;
+    c.R = r;
+    c.T = t;
 
     // For performance reasons, OpenDTAM only supports multiple of 32 image sizes with cols >= 64
     CV_Assert(image.rows % 32 == 0 && image.cols % 32 == 0 && image.cols >= 64);
-    //     CV_Assert(_layers>=8);
 
-    checkInputs(R, T, _cameraMatrix);
-    fid = _fid;
-    rows = image.rows;
-    cols = image.cols;
-    layers = _layers;
-    near = _near;
-    far = _far;
-    depthStep = (near - far) / (layers - 1);
-    cameraMatrix = _cameraMatrix.clone();
-    solveProjection(R, T); // stored as CostVolume::projection a 4x4 cv::Mat
-    FLATALLOC(lo); // a cv::cuda::GpuMat
-    FLATALLOC(hi);
-    FLATALLOC(loInd);
-    dataContainer.create(layers, rows * cols, CV_32FC1); // a cv::cuda::GpuMat
+    checkInputs(c.R, c.T, _K);
+
+    solveProjection(c.R, c.T); // stored as CostVolume::projection a 4x4 cv::Mat
+    FLATALLOC(c.lo); // a cv::cuda::GpuMat
+    FLATALLOC(c.hi);
+    FLATALLOC(c.loInd);
+    c.data_mat.create(_layers, _rows * _cols, CV_32FC1); // a cv::cuda::GpuMat
 
     Mat bwImage;
     image = image.reshape(0, 1);
     cv::cvtColor(image, bwImage, CV_RGB2GRAY);
-    baseImage.upload(image); // a cv::cuda::GpuMat
-    baseImageGray.upload(bwImage);
-    baseImage = baseImage.reshape(0, rows);
-    baseImageGray = baseImageGray.reshape(0, rows);
+    c.baseImage.upload(image); // a cv::cuda::GpuMat
+    c.baseImageGray.upload(bwImage);
+    c.baseImage = c.baseImage.reshape(0, _rows);
+    c.baseImageGray = c.baseImageGray.reshape(0, _rows);
 
-    loInd.setTo(Scalar(0, 0, 0), cvStream);
-    dataContainer.setTo(Scalar(initialCost), cvStream);
+    c.loInd.setTo(Scalar(0, 0, 0), c.stream);
+    c.data_mat.setTo(Scalar(initialCost), c.stream);
 
-    data = (float *)dataContainer.data;
+    c.data = (float *)c.data_mat.data;
     // hits = (float *)hitContainer.data;
 
-    count = 0;
+    c.count = 0;
 
     // messy way to disguise cuda objects     // stored in CostVolume::  (private)
     _cuArray = Ptr<char>((char *)(new cudaArray_t));
@@ -118,7 +118,7 @@ CostVolume::CostVolume(Mat image, FrameID _fid, int _layers, float _near, float 
     ref = Ptr<char>(new char);
 }
 
-void CostVolume::simpleTex(const Mat &image, Stream cvStream)
+void CostVolume::simpleTex(const Mat &image, Stream stream)
 {
     cudaArray_t &cuArray = *((cudaArray_t *)(char *)_cuArray);
     cudaTextureObject_t &texObj = *((cudaTextureObject_t *)(char *)_texObj);
@@ -145,7 +145,7 @@ void CostVolume::simpleTex(const Mat &image, Stream cvStream)
 
     cudaSafeCall(
         cudaMemcpyToArrayAsync(cuArray, 0, 0, image.datastart, image.dataend - image.datastart,
-            cudaMemcpyHostToDevice, StreamAccessor::getStream(cvStream)));
+            cudaMemcpyHostToDevice, StreamAccessor::getStream(stream)));
 
     // Specify texture memory location
     struct cudaResourceDesc resDesc;
@@ -163,7 +163,7 @@ void CostVolume::simpleTex(const Mat &image, Stream cvStream)
 void CostVolume::updateCost(const Mat &_image, const cv::Mat &R, const cv::Mat &T)
 {
     using namespace cv::cuda::dtam_updateCost;
-    localStream = cv::cuda::StreamAccessor::getStream(cvStream);
+    localStream = cv::cuda::StreamAccessor::getStream(c.stream);
 
     // 0  1  2  3
     // 4  5  6  7
@@ -178,7 +178,7 @@ void CostVolume::updateCost(const Mat &_image, const cv::Mat &R, const cv::Mat &
     // cudaAddressModeClamp
     // cudaFilterModeLinear
     //
-    // make sure we modify the cameraMatrix to take into account the texture coordinates
+    // make sure we modify the K to take into account the texture coordinates
     //
     Mat image;
     {
@@ -217,30 +217,30 @@ void CostVolume::updateCost(const Mat &_image, const cv::Mat &R, const cv::Mat &
         CV_Assert(image.type() == CV_8UC4);
     }
     // change input image to a texture
-    // ArrayTexture tex(image, cvStream);
-    simpleTex(image, cvStream);
+    // ArrayTexture tex(image, stream);
+    simpleTex(image, c.stream);
     cudaTextureObject_t &texObj = *((cudaTextureObject_t *)(char *)_texObj);
-    //     cudaTextureObject_t texObj=simpleTex(image,cvStream);
+    //     cudaTextureObject_t texObj=simpleTex(image,stream);
     //     cudaSafeCall( cudaDeviceSynchronize() );
 
     // find projection matrix from cost volume to image (3x4)
     Mat viewMatrixImage;
     RTToP(R, T, viewMatrixImage);
 
-    Mat K(3, 4, CV_64FC1);
-    K = 0.0;
-    cameraMatrix.copyTo(K(Range(0, 3), Range(0, 3)));
+    Mat camM(3, 4, CV_64FC1);
+    camM = 0.0;
+    _K.copyTo(camM(Range(0, 3), Range(0, 3)));
 
     // ytom: not exactly! <add 0.5 to x,y out //removing causes crash>
     // K(Range(0, 2), Range(2, 3)) += 0.5;
 
-    Mat imFromWorld = K * viewMatrixImage; // 3x4
-    Mat imFromCV = imFromWorld * projection.inv();
+    Mat imFromWorld = camM * viewMatrixImage; // 3x4
+    Mat imFromCV = imFromWorld * c.projection.inv();
 
-    assert(baseImage.isContinuous());
-    assert(lo.isContinuous());
-    assert(hi.isContinuous());
-    assert(loInd.isContinuous());
+    assert(c.baseImage.isContinuous());
+    assert(c.lo.isContinuous());
+    assert(c.hi.isContinuous());
+    assert(c.loInd.isContinuous());
 
     double *p = (double *)imFromCV.data;
     m34 persp;
@@ -248,13 +248,31 @@ void CostVolume::updateCost(const Mat &_image, const cv::Mat &R, const cv::Mat &
         persp.data[i] = p[i];
 
 #define CONST_ARGS                                                                                 \
-    rows, cols, layers, rows *cols, NULL, data, (float *)(lo.data), (float *)(hi.data),            \
-        (float *)(loInd.data), (float3 *)(baseImage.data), (float *)baseImage.data, texObj
+    _rows, _cols, _layers, _rows *_cols, NULL, c.data, (float *)(c.lo.data), (float *)(c.hi.data), \
+        (float *)(c.loInd.data), (float3 *)(c.baseImage.data), (float *)c.baseImage.data, texObj
 
-    float w = count++ + initialWeight; // fun parse
+    float w = c.count++ + _initialWeight; // fun parse
     w /= (w + 1);
     assert(localStream);
     globalWeightedBoundsCostCaller(persp, w, CONST_ARGS); // calls Cuda Kernel
+}
+
+CostVolume &CostVolume::operator=(CostVolume &&rhs)
+{
+    _rows = rhs._rows;
+    _cols = rhs._cols;
+    _layers = rhs._layers;
+    _near = rhs._near;
+    _far = rhs._far;
+    _depthStep = rhs._depthStep;
+    _initialWeight = rhs._initialWeight;
+    _K = std::move(rhs._K);
+    this->c = std::move(rhs.c);
+    this->_cuArray = std::move(rhs._cuArray);
+    this->_texObj = std::move(rhs._texObj);
+    this->cBuffer = std::move(rhs.cBuffer);
+    this->ref = std::move(rhs.ref);
+    return *this;
 }
 
 CostVolume::~CostVolume()

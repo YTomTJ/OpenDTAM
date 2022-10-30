@@ -8,11 +8,10 @@
 
 class Optimizer {
 public:
-    CostVolume cv; // The cost volume we are attached to
+    CostVolume &cv; // The cost volume we are attached to
 
     Optimizer(CostVolume &cv);
-
-    void attach(CostVolume &cv);
+    // void attach(const CostVolume &cv);
     void initOptimization();
     bool optimizeA(const cv::cuda::GpuMat d, cv::cuda::GpuMat a);
 

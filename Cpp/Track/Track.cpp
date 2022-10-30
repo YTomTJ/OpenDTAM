@@ -13,14 +13,14 @@ Track::Track(Cost cost)
     pose = basePose.clone();
 }
 
-Track::Track(CostVolume cost)
+Track::Track(const CostVolume &cost)
 {
-    rows = cost.rows;
-    cols = cost.cols;
-    cost.baseImage.download(thisFrame);
+    rows = cost.rows();
+    cols = cost.cols();
+    cost.c.baseImage.download(thisFrame);
     baseImage = lastFrame = thisFrame;
-    cameraMatrix = Mat(cost.cameraMatrix);
-    RTToLie(cost.R, cost.T, basePose);
+    cameraMatrix = cost.K().clone();
+    RTToLie(cost.c.R, cost.c.T, basePose);
     pose = basePose.clone();
 }
 

@@ -15,8 +15,7 @@ static void memZero(GpuMat &in, Stream &cvStream);
 
 void Optimizer::setDefaultParams()
 {
-
-    float off = cv.layers;
+    float off = cv.layers();
     thetaStart = 200.0;
     thetaMin = 0.1;
     thetaStep = .97;
@@ -32,22 +31,24 @@ static void memZero(GpuMat &in, Stream &cvStream)
 
 Optimizer::Optimizer(CostVolume &cv)
     : cv(cv)
-    , cvStream(cv.cvStream)
+    , cvStream(cv.c.stream)
 {
     // For performance reasons, OpenDTAM only supports multiple of 32 image sizes with cols >= 64
-    CV_Assert(cv.rows % 32 == 0 && cv.cols % 32 == 0 && cv.cols >= 64);
+    CV_Assert(cv.rows() % 32 == 0 && cv.cols() % 32 == 0 && cv.cols() >= 64);
     allocate();
     setDefaultParams();
     stableDepthEnqueued = haveStableDepth = 0;
 }
-void Optimizer::attach(CostVolume &cv)
-{
-    this->cv = cv;
-    cvStream = cv.cvStream;
-}
+
+// void Optimizer::attach(CostVolume &&cv)
+// {
+//     this->cv = std::move(cv);
+//     cvStream = cv.c.stream;
+// }
+
 #define FLATALLOC(n)                                                                               \
-    n.create(1, cv.rows *cv.cols, CV_32FC1);                                                       \
-    n = n.reshape(0, cv.rows);                                                                     \
+    n.create(1, cv.rows() *cv.cols(), CV_32FC1);                                                       \
+    n = n.reshape(0, cv.rows());                                                                     \
     CV_Assert(n.isContinuous())
 
 void Optimizer::allocate()
@@ -62,7 +63,7 @@ void Optimizer::initOptimization()
     initA();
 }
 
-void Optimizer::initA() { cv.loInd.copyTo(_a, cvStream); }
+void Optimizer::initA() { cv.c.loInd.copyTo(_a, cvStream); }
 
 bool Optimizer::optimizeA(const cv::cuda::GpuMat _d, cv::cuda::GpuMat _a)
 {
@@ -70,20 +71,20 @@ bool Optimizer::optimizeA(const cv::cuda::GpuMat _d, cv::cuda::GpuMat _a)
     localStream = cv::cuda::StreamAccessor::getStream(cvStream);
     this->_a = _a;
 
-    Mat tmp(cv.rows, cv.cols, CV_32FC1);
+    Mat tmp(cv.rows(), cv.cols(), CV_32FC1);
     bool doneOptimizing = theta <= thetaMin;
-    int layerStep = cv.rows * cv.cols;
+    int layerStep = cv.rows() * cv.cols();
     float *d = (float *)_d.data;
     float *a = (float *)_a.data;
 
-    loadConstants(cv.rows, cv.cols, cv.layers, layerStep, a, d, cv.data, (float *)cv.lo.data,
-        (float *)cv.hi.data, (float *)cv.loInd.data);
-    minimizeACaller(cv.data, a, d, cv.layers, theta, lambda);
+    loadConstants(cv.rows(), cv.cols(), cv.layers(), layerStep, a, d, cv.c.data, (float *)cv.c.lo.data,
+        (float *)cv.c.hi.data, (float *)cv.c.loInd.data);
+    minimizeACaller(cv.c.data, a, d, cv.layers(), theta, lambda);
     theta *= thetaStep;
     if (doneOptimizing) {
         stableDepthReady = Ptr<char>((char *)(new cudaEvent_t));
         cudaEventCreate((cudaEvent_t *)(char *)stableDepthReady, cudaEventBlockingSync);
-        _a.convertTo(stableDepth, CV_32FC1, cv.depthStep, cv.far, cvStream);
+        _a.convertTo(stableDepth, CV_32FC1, cv.depthStep(), cv.far(), cvStream);
         // cvStream.enqueueConvert(_a,stableDepth,CV_32FC1,cv.depthStep,cv.far);
         cudaEventRecord(*(cudaEvent_t *)(char *)stableDepthReady, localStream);
         stableDepthEnqueued = 1;
@@ -98,7 +99,7 @@ const cv::Mat Optimizer::depthMap()
     //  internal data to true inverse depth, as this may change.
     //  Currently depth is just a constant multiple of the index, so
     //  infinite depth is always represented. This is likely to change.
-    Mat tmp(cv.rows, cv.cols, CV_32FC1);
+    Mat tmp(cv.rows(), cv.cols(), CV_32FC1);
     cv::cuda::Stream str;
     if (stableDepthEnqueued) {
         cudaEventSynchronize(*(cudaEvent_t *)(char *)stableDepthReady);
@@ -109,7 +110,7 @@ const cv::Mat Optimizer::depthMap()
         _a.download(tmp, str);
         // str.enqueueDownload(_a,tmp);
         str.waitForCompletion();
-        tmp = tmp * cv.depthStep + cv.far;
+        tmp = tmp * cv.depthStep() + cv.far();
     }
     return tmp;
 }

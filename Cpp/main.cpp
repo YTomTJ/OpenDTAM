@@ -176,8 +176,9 @@ int App_main(int argc, char **argv)
         R = Rs[imageNum].clone();
         image = images[imageNum];
 
-        if (cv.count < imagesPerCV) { /// first it grabs enough frames to build a usable cost volume
-            cv.updateCost(image, R, T); /// increments cv.count
+        if (cv.c.count
+            < imagesPerCV) { /// first it grabs enough frames to build a usable cost volume
+            cv.updateCost(image, R, T); /// increments cv.c.count
             cudaDeviceSynchronize();
 
         } else {
@@ -185,19 +186,19 @@ int App_main(int argc, char **argv)
                                      /// depthmap
             // Attach optimizer
             Ptr<DepthmapDenoiseWeightedHuber> dp
-                = createDepthmapDenoiseWeightedHuber(cv.baseImageGray, cv.cvStream);
+                = createDepthmapDenoiseWeightedHuber(cv.c.baseImageGray, cv.c.stream);
             DepthmapDenoiseWeightedHuber &denoiser = *dp;
             Optimizer optimizer(cv);
             optimizer.initOptimization();
 
-            GpuMat a(cv.loInd.size(), cv.loInd.type());
-            cv.loInd.copyTo(a, cv.cvStream);
+            GpuMat a(cv.c.loInd.size(), cv.c.loInd.type());
+            cv.c.loInd.copyTo(a, cv.c.stream);
 
             GpuMat d;
             denoiser.cacheGValues();
             ret = image * 0;
 
-            cv.loInd.download(ret);
+            cv.c.loInd.download(ret);
             pfShow("loInd", ret, 0, Vec2d(0, layers));
 
             bool doneOptimizing;
@@ -231,7 +232,7 @@ int App_main(int argc, char **argv)
             Mat out = optimizer.depthMap();
             double m;
             minMaxLoc(out, NULL, &m);
-            tracker.depth = out * (.66 * cv.near / m);
+            tracker.depth = out * (.66 * cv.near() / m);
             if (imageNum + imagesPerCV + 1 >= numImg) {
                 inc = -1;
             }
@@ -256,8 +257,8 @@ int App_main(int argc, char **argv)
                 std::cout << i << std::endl;
                 std::cout << Rs0[i] << Rs[i];
                 // Display
-                reprojectCloud(images[i], images[cv.fid], tracker.depth,
-                    RTToP(Rs[cv.fid], Ts[cv.fid]), RTToP(Rs[i], Ts[i]), K);
+                reprojectCloud(images[i], images[cv.c.fid], tracker.depth,
+                    RTToP(Rs[cv.c.fid], Ts[cv.c.fid]), RTToP(Rs[i], Ts[i]), K);
             }
             cv = CostVolume(images[imageNum], (FrameID)imageNum, layers, near, far, Rs[imageNum],
                 Ts[imageNum], K);

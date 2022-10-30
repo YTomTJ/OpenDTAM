@@ -252,6 +252,7 @@ static void *Cost_optimizeQD(void *object)
             return 0;
     }
     cost->running_qd = false;
+    return NULL;
 }
 static void *Cost_optimizeA(void *object)
 {
@@ -264,6 +265,7 @@ static void *Cost_optimizeA(void *object)
         if (allDie)
             return 0;
     }
+    return NULL;
 }
 
 void Cost::optimize()

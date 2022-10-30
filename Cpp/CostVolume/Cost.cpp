@@ -1,9 +1,5 @@
 #include "Cost.h"
 
-#define COST_CPP_SUBPARTS
-#include "min.part.cpp"
-#undef COST_CPP_SUBPARTS
-
 #ifdef COST_CPP_SUBPARTS
 #include "CostVolume/utils/reproject.hpp"
 
