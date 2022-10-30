@@ -101,11 +101,11 @@ int App_main(int argc, char **argv)
     using namespace cv;
     using namespace cv::cuda;
 
-    const double z_near = 0.01; // mm
+    const double z_near = 1.0; // mm
     const double z_far = 250.0; // mm
-    const double near = 1.0 / z_near; // mm^{-1}
+    // const double near = 1.0 / z_near; // mm^{-1}
     // const double far = 1.0 / z_far; // mm^{-1}
-    // const double near = 0.015;
+    const double near = 0.01;
     const double far = 0.0;
     const int layers = 32;
     const int imagesPerCV = 20;
@@ -201,12 +201,15 @@ int App_main(int argc, char **argv)
             cv.c.loInd.download(ret);
             pfShow("loInd", ret, 0, Vec2d(0, layers));
 
+            cv.c.baseImage.download(ret);
+            pfShow("Source", ret, 0);
+
             bool doneOptimizing;
             int Acount = 0;
             int QDcount = 0;
             do {
-                a.download(ret);
-                pfShow("A function", ret, 0, Vec2d(0, layers));
+                pfShow("A function", CostVolume::depth(a, cv.depthStep(), cv.far()), 0,
+                    Vec2d(1.0 / near, 5000.0));
 
                 for (int i = 0; i < 10; i++) {
                     d = denoiser(a, optimizer.epsilon,
@@ -225,45 +228,45 @@ int App_main(int argc, char **argv)
             // // optimizer.optimizeA(a,a);
             optimizer.cvStream.waitForCompletion();
 
-            // a.download(ret);
-            // pfShow("A function loose", ret, 0, Vec2d(0, layers));
+            // // a.download(ret);
+            // // pfShow("A function loose", ret, 0, Vec2d(0, layers));
 
-            Track tracker(cv); // tracking - find the pose transform to the current frame
-            Mat out = optimizer.depthMap();
-            double m;
-            minMaxLoc(out, NULL, &m);
-            tracker.depth = out * (.66 * cv.near() / m);
-            if (imageNum + imagesPerCV + 1 >= numImg) {
-                inc = -1;
-            }
-            imageNum -= imagesPerCV + 1 - inc;
-            for (int i = imageNum; i < numImg && i <= imageNum + imagesPerCV + 1; i++) {
-                tracker.addFrame(images[i]);
-                tracker.align();
-                LieToRT(tracker.pose, R, T);
-                Rs[i] = R.clone();
-                Ts[i] = T.clone();
+            // Track tracker(cv); // tracking - find the pose transform to the current frame
+            // Mat out = optimizer.depthMap();
+            // double m;
+            // minMaxLoc(out, NULL, &m);
+            // tracker.depth = out * (.66 * cv.near() / m);
+            // if (imageNum + imagesPerCV + 1 >= numImg) {
+            //     inc = -1;
+            // }
+            // imageNum -= imagesPerCV + 1 - inc;
+            // for (int i = imageNum; i < numImg && i <= imageNum + imagesPerCV + 1; i++) {
+            //     tracker.addFrame(images[i]);
+            //     tracker.align();
+            //     LieToRT(tracker.pose, R, T);
+            //     Rs[i] = R.clone();
+            //     Ts[i] = T.clone();
 
-                Mat p, tp;
-                p = tracker.pose;
-                tp = RTToLie(Rs0[i], Ts0[i]);
-                { // debug
-                    std::cout << "True Pose: " << tp << std::endl;
-                    std::cout << "True Delta: " << LieSub(tp, tracker.basePose) << std::endl;
-                    std::cout << "Recovered Pose: " << p << std::endl;
-                    std::cout << "Recovered Delta: " << LieSub(p, tracker.basePose) << std::endl;
-                    std::cout << "Pose Error: " << p - tp << std::endl;
-                }
-                std::cout << i << std::endl;
-                std::cout << Rs0[i] << Rs[i];
-                // Display
-                reprojectCloud(images[i], images[cv.c.fid], tracker.depth,
-                    RTToP(Rs[cv.c.fid], Ts[cv.c.fid]), RTToP(Rs[i], Ts[i]), K);
-            }
-            cv = CostVolume(images[imageNum], (FrameID)imageNum, layers, near, far, Rs[imageNum],
-                Ts[imageNum], K);
+            //     Mat p, tp;
+            //     p = tracker.pose;
+            //     tp = RTToLie(Rs0[i], Ts0[i]);
+            //     { // debug
+            //         std::cout << "True Pose: " << tp << std::endl;
+            //         std::cout << "True Delta: " << LieSub(tp, tracker.basePose) << std::endl;
+            //         std::cout << "Recovered Pose: " << p << std::endl;
+            //         std::cout << "Recovered Delta: " << LieSub(p, tracker.basePose) << std::endl;
+            //         std::cout << "Pose Error: " << p - tp << std::endl;
+            //     }
+            //     std::cout << i << std::endl;
+            //     std::cout << Rs0[i] << Rs[i];
+            //     // Display
+            //     reprojectCloud(images[i], images[cv.c.fid], tracker.depth,
+            //         RTToP(Rs[cv.c.fid], Ts[cv.c.fid]), RTToP(Rs[i], Ts[i]), K);
+            // }
+            // cv = CostVolume(images[imageNum], (FrameID)imageNum, layers, near, far, Rs[imageNum],
+            //     Ts[imageNum], K);
             s = optimizer.cvStream;
-            // a.download(ret);
+            // // a.download(ret);
         }
         s.waitForCompletion(); // so we don't lock the whole system up forever
     }
