@@ -101,11 +101,11 @@ int App_main(int argc, char **argv)
     using namespace cv;
     using namespace cv::cuda;
 
-    const double z_near = 0.1; // mm
-    const double z_far = 500.0; // mm
-    // const double near = 1.0 / z_near; // mm^{-1}
+    const double z_near = 0.01; // mm
+    const double z_far = 250.0; // mm
+    const double near = 1.0 / z_near; // mm^{-1}
     // const double far = 1.0 / z_far; // mm^{-1}
-    const double near = 0.015;
+    // const double near = 0.015;
     const double far = 0.0;
     const int layers = 32;
     const int imagesPerCV = 20;

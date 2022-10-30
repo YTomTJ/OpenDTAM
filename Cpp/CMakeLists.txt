@@ -46,7 +46,7 @@ add_subdirectory(utils)
 include_directories("${BASEPATH}" ${CUDA_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};
-
+    -g
     # -gencode arch=compute_30,code=sm_30;
     # -gencode arch=compute_35,code=sm_35;
     # -gencode arch=compute_50,code=sm_50;
