@@ -58,6 +58,9 @@ public:
         cv::Mat T, cv::Mat _cameraMatrix, float initialCost = 3.0, float initialWeight = .001);
     ~CostVolume();
 
+    cv::Mat depth() const;
+    static cv::Mat depth(const cv::cuda::GpuMat &layers, float ds, float far);
+
     CostVolume &operator=(CostVolume &&);
 
     // // HACK: remove this function in release

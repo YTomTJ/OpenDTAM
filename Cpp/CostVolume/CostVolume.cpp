@@ -297,3 +297,15 @@ CostVolume::~CostVolume()
     }
     free(R);
 }
+
+cv::Mat CostVolume::depth(const cv::cuda::GpuMat &layers, float ds, float far)
+{
+    cv::Mat ret;
+    layers.download(ret);
+    // ret: layer index
+    ret = ret * ds + far;
+    ret = 1.0 / ret;
+    return ret;
+}
+
+cv::Mat CostVolume::depth() const { return depth(c.loInd, _depthStep, _far); }

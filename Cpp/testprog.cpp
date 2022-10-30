@@ -127,10 +127,15 @@ int App_main(int argc, char **argv)
 #endif
 
     const Mat K0 = (Mat_<double>(3, 3) << 0.751875, 0.0, 0.5, 0.0, 1.0, 0.5, 0.0, 0.0, 1.0);
+    const double near = 0.015;
+    const double far = 0.0;
+    const int layers = 32;
+    const int imagesPerCV = 20;
+    const int numImg = 50;
+    const int W = 640;
+    const int H = 480;
 
     fs::path source(argv[1]);
-
-    int numImg = 50;
     std::vector<Mat> images, Rs, Ts, Rs0, Ts0;
 
     std::vector<fs::path> image_files;
@@ -169,15 +174,12 @@ int App_main(int argc, char **argv)
     Mat ret = cret.createMatHeader();
 
     // Setup camera matrix
-    int layers = 32;
-    int imagesPerCV = 20;
-
     Mat K = K0.clone();
     K.at<double>(0, 0) *= images[0].cols;
     K.at<double>(1, 1) *= images[0].rows;
     K.at<double>(0, 2) *= images[0].cols - 1;
     K.at<double>(1, 2) *= images[0].rows - 1;
-    CostVolume cv(images[0], (FrameID)0, layers, 0.015, 0.0, Rs[0], Ts[0], K);
+    CostVolume cv(images[0], (FrameID)0, layers, near, far, Rs[0], Ts[0], K);
 
     // Old Way
     int inc = 1;
@@ -221,8 +223,9 @@ int App_main(int argc, char **argv)
             int Acount = 0;
             int QDcount = 0;
             do {
-                a.download(ret);
-                pfShow("A function", ret, 0, Vec2d(0, layers));
+                // a.download(ret);
+                pfShow("A function", CostVolume::depth(a, cv.depthStep(), cv.far()), 0,
+                    Vec2d(1.0 / near, 5000.0));
 
                 for (int i = 0; i < 10; i++) {
                     d = denoiser(a, optimizer.epsilon,
@@ -276,7 +279,7 @@ int App_main(int argc, char **argv)
                 reprojectCloud(images[i], images[cv.c.fid], tracker.depth,
                     RTToP(Rs[cv.c.fid], Ts[cv.c.fid]), RTToP(Rs[i], Ts[i]), K);
             }
-            cv = std::move(CostVolume(images[imageNum], (FrameID)imageNum, layers, 0.015, 0.0,
+            cv = std::move(CostVolume(images[imageNum], (FrameID)imageNum, layers, near, far,
                 Rs[imageNum], Ts[imageNum], K));
             s = optimizer.cvStream;
             // a.download(ret);
